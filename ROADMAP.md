@@ -4,7 +4,7 @@
 
 This roadmap turns the empty `gfl` scaffold (LICENSE + README + brand icons) into a
 complete boulingua course: Modern Greek content **and** the published Hugo site,
-conforming to the `pagegen` template, the `curriculum` framework, and the binding
+conforming to the `kit` platform, the `curriculum` framework, and the binding
 VG Wort standard. It is written to be executed top-to-bottom.
 
 ---
@@ -59,18 +59,20 @@ Each decision below is a recommendation, not an open question.
   `languageCode = "el"`, `defaultContentLanguage = "el"`.
 - **RTL → not applicable.** Greek is LTR; no bidi layout work. (Flagged only to close it.)
 - **Web fonts → pin a Greek-complete stack.** Verify hugo-coder's font renders tonos +
-  diaeresis; if not, self-host a subsetted **open** face with full Greek coverage (e.g.
-  Noto Sans/Serif Greek or GFS fonts, OFL) under `static/fonts/` and reference it in
-  `assets/css/custom.css`. Same check for `slidegen`/`sheetgen` LaTeX (`fontspec` +
+  diaeresis; if not, take the Greek subset from the kit. Fonts are **not**
+  self-hosted per course: F3 builds per-script subsets from full upstream faces and
+  ships them in the module, so this course declares its script tier and receives the
+  right subset. A course repo has no `static/fonts/` and no `assets/css/`, and adding
+  either re-opens the drift the module closed. Same check for the kit's LaTeX templates (`fontspec` +
   a Greek-covering OpenType font; confirm `\setmainfont` handles combining tonos).
   §1's caution at challenge 3 is measured, not hedged: the bundled
-  `slidegen/fonts/SourceSans3-Regular.ttf` carries 781 codepoints with **none** in
+  `kit/fonts/SourceSans3-Regular.ttf` carries 781 codepoints with **none** in
   U+0370–U+03FF, so it renders tofu for every Greek word. **F3** is where this is
   fixed org-wide — full upstream Source Sans 3, self-hosted, with the Greek subset
   built by `build_fonts.py` rather than hand-picked here — so do the verification, and
   take the subset from F3 when it lands instead of pinning a one-off face.
 - **TTS → decided: `el_GR-rapunzelina-medium` (CC0), medium tier, single speaker.** Use
-  it via the shared `audiogen`/Piper workflow for vocab, dialogues and texts. The
+  it via the kit's Piper workflow (`kit/audio/`) for vocab, dialogues and texts. The
   medium-tier voice this document was waiting for already exists and is the same speaker
   at 22.05 kHz instead of 16 kHz, under the same CC0 terms — so the audio quality target
   rises with no licence cost and no re-audition of a new speaker. What does **not**
@@ -82,8 +84,8 @@ Each decision below is a recommendation, not an open question.
   also CC0), then transcript-only — never a neighbouring language's voice. Verify
   pronunciation of tonos-stressed words and final-ς before committing audio.
 - **Voice IDs are never hand-typed.** The ID, tier and licence above are read from
-  `audiogen/voices.yml` (relocating to `kit/audio/voices.yml` at F1), which is the single
-  source of truth and keeps `-low` and the rejected `joy` row with their licences so the
+  `kit/audio/voices.yml`, which is the single source of truth and must never be
+  hand-copied into prose and keeps `-low` and the rejected `joy` row with their licences so the
   decision stays auditable. A voice ID retyped from memory is how a 404 gets written into
   a download script.
 - **Level 0 stage** — see above; it is a first-class content section, its long-form
@@ -91,33 +93,62 @@ Each decision below is a recommendation, not an open question.
 
 ---
 
-## 3. Instantiation from pagegen
+## 3. Instantiation from the kit
 
-Stand up the buildable site first, before authoring content.
+Stand up the buildable site first, before authoring content. Nothing shared is
+copied into `gfl/` — it is imported.
 
-1. **Copy the template** into `gfl/` (preserve the existing `LICENSE`, `README.md`,
-   `brand/`): bring over `hugo.toml`, `go.mod`/`go.sum`, `archetypes/`, `layouts/`,
-   `assets/`, `data/`, `i18n/`, `scripts/`, `static/`, `content/` skeleton, `.github/`,
-   `lychee.toml`, `.gitignore`, `.gitattributes`, `.nojekyll`, `_materials/`.
-2. **Edit the marked `hugo.toml` values (only these):**
+1. **Create the repo around the kit** (preserve the existing `LICENSE`,
+   `README.md`, `brand/`). `gfl` holds a short `hugo.toml` — baseURL, title,
+   languageCode, `[params]`, menus, and the module import
+
+   ```toml
+   [module]
+     [[module.imports]]
+       path = "github.com/boulingua/kit"
+   ```
+
+   — plus `go.mod`/`go.sum` requiring `github.com/boulingua/kit` at the pinned
+   tag (`v1.0.0`), `boulingua.yml` (the per-course config the gate battery
+   reads), the twelve-line `.github/workflows/deploy.yml` calling the org's
+   reusable workflow, an empty `content/` skeleton, the legal pages,
+   `lychee.toml`, `.gitignore`, `.gitattributes`, `.nojekyll`. `layouts/`,
+   `assets/`, `i18n/`, `archetypes/` and `scripts/` are **not** copied and must
+   never appear in this repo: they are the drift surface, and a file that is not
+   here cannot fork. Hugo resolves the first four from the module; CI checks the
+   kit out at the pinned tag so `scripts/` and the gate battery sit on disk
+   before Hugo runs.
+2. **Vendor `_materials/`.** Run `kit materials sync`: it assembles the kit's
+   `latex/`, `fonts/` and `brand/icons/` into the flat `_materials/` tree the
+   LaTeX build expects, and the result is committed. This is the only vendored
+   surface — XeLaTeX cannot read a Hugo module — and it is hash-gated against
+   `kit.lock`, so an edited file fails the build instead of forking quietly.
+   (Earlier drafts said to copy `_materials/` from the template; `pagegen` never
+   had one.)
+3. **Edit the marked `hugo.toml` values (only these):**
    - `baseURL = "https://boulingua.github.io/gfl/"`
    - `title = "Ελληνικά — Greek course — S. Le Boulanger"`
    - `languageCode = "el"`, `defaultContentLanguage = "el"`
    - `[params].navTitle = "Ελληνικά"`, `description`, `keywords`
-   - `[params].code = "gfl"` ← selects the accent from `data/accents.yaml`
+   - `[params].code = "gfl"` ← selects the accent from the kit's
+     `data/accents.yaml`. Set it. The kit's own default is the neutral graphite
+     `template` accent, so an unconfigured course looks obviously wrong rather
+     than looking like DaF.
    - `[params.plausible].domain = "boulingua.github.io/gfl"`
    - `[[params.social]].url = "https://github.com/boulingua/gfl"`
    - `[[menu.main]]` sections → mirror `content/` (Level 0, A1, A2, B1, Materials, About,
      Legal). Keep `[params.plausible]` **last** under `[params]` (TOML sub-table trap).
-3. **Accent + icon.** `data/accents.yaml` already carries `gfl` (`#C74A23` / hover `#A03B1C`
-   / dark `#E7977E`) — confirm, do **not** edit CSS. Run `python brand/make_icon.py` to
-   regenerate the pentagon mark + favicons from the accent.
-4. **Legal pages.** Fill the ⟨…⟩ placeholders in `impressum.md` / `datenschutz.md` /
+4. **Accent + icon.** The kit's `data/accents.yaml` already carries `gfl` (`#C74A23` /
+   hover `#A03B1C` / dark `#E7977E`) and arrives with the module — confirm, do **not**
+   edit CSS and do not keep a copy here. Run the kit's `brand/make_icon.py` to regenerate
+   this repo's pentagon mark + favicons from the accent.
+5. **Legal pages.** Fill the ⟨…⟩ placeholders in `impressum.md` / `datenschutz.md` /
    `haftungsausschluss.md`; the Datenschutz page must include the VG Wort METIS disclosure.
-5. **First green build.** `hugo --minify --gc` clean locally; push; confirm
-   `.github/workflows/build-deploy.yml` runs the gate battery and deploys to GitHub Pages.
-   Enable Pages (source: GitHub Actions). Verify the accent renders and the pentagon favicon
-   loads. **This is the MVP-0 gate: an empty-but-correct site is live before content.**
+6. **First green build.** `hugo --minify --gc --panicOnWarning` clean locally; push;
+   confirm `.github/workflows/deploy.yml` runs the gate battery and deploys to GitHub
+   Pages. Enable Pages (source: GitHub Actions). Verify the accent renders and the
+   pentagon favicon loads. **This is the MVP-0 gate: an empty-but-correct site is live
+   before content.**
 
 ---
 
@@ -193,15 +224,15 @@ public-domain only, cited). **S–M.**
 
 - **Section landings** via shortcodes only (`hero`, `kicker`, `lead`, `card-grid`, `card`,
   `downloads`, `callout`) — never raw HTML — for Level 0, A1, A2, B1, Materials, About.
-- **Materials pipeline.** Generate decks from `slidegen` (beamer) and worksheets from
-  `sheetgen` LaTeX templates locally; **commit** the `.odp`/PDF outputs under
+- **Materials pipeline.** Generate decks (beamer) and worksheets from the kit's LaTeX
+  templates (`kit/latex/`, vendored into `_materials/`) locally; **commit** the `.odp`/PDF outputs under
   `static/materials/` + `static/downloads/`. CI only *verifies* (no TeX Live in deploy path).
   Both LaTeX templates must be confirmed Greek-capable (fontspec + Greek OpenType face) as a
   one-time setup task before the first deck.
-- **Native-voice audio.** Run `audiogen`/Piper with `el_GR-rapunzelina-medium` (CC0);
+- **Native-voice audio.** Run the kit's Piper workflow with `el_GR-rapunzelina-medium` (CC0);
   output OGG/Opus committed under `static/`; idempotent re-synthesis on text change. The
-  `.onnx` path comes from the `gfl` row in `audiogen/voices.yml` (→ `kit/audio/voices.yml`
-  at F1) and is never typed in by hand. Medium tier, so the audio quality target is the
+  `.onnx` path comes from the `gfl` row in `kit/audio/voices.yml` and is never typed in
+  by hand. Medium tier, so the audio quality target is the
   same as the sister sites'; single-voice caveat per §2 still applies, and it is a licence
   constraint, not a catalogue gap.
 - **Thumbnails & downloads.** `scripts/render_thumbs.py` for deck/worksheet thumbnails;
@@ -213,7 +244,7 @@ public-domain only, cited). **S–M.**
 
 Every editorial page of **≥ 1800 rendered characters** — every Level 0 unit, A1/A2/B1 unit,
 every exam, every appendix, and the About/overview prose — gets **exactly one** VG Wort
-Zählmarke, per `pagegen/docs/vgwort-standard.md`. Procedure:
+Zählmarke, per `kit/docs/vgwort-standard.md`. Procedure:
 
 1. **Draw fresh public codes** (32-hex `Öffentlicher Identifikationscode`) from the author's
    **T.O.M.** account — one per work, never reused, never invented. Private codes never touch
