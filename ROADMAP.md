@@ -34,9 +34,12 @@ after `core` is live; C1/C2 are explicitly declared out of reach for freely-avai
 3. **Web font with Greek coverage.** hugo-coder's default stack and the LaTeX material
    templates must render Greek (including tonos + diaeresis combinations) correctly; not all
    bundled fonts have complete Greek coverage.
-4. **TTS availability is thin.** Piper's committed boulingua voice set has **no Greek voice**;
-   the only openly-licensed option is `el_GR-rapunzelina-low` (single speaker, "low" tier).
-   Audio strategy must be decided, not assumed.
+4. **TTS is single-speaker, but not low-tier.** Upstream ships three Greek voices, and
+   `el_GR-rapunzelina-medium` — the same speaker as `-low`, equally CC0, at 22.05 kHz
+   against `-low`'s 16 kHz — is the one to use; the tier this document once accepted was
+   a free upgrade left on the table. The third voice, `el_GR-joy-medium`, is CC BY-NC 4.0
+   and cannot go inside a CC BY-SA 4.0 course, so Greek still has exactly **one** usable
+   speaker and dialogue turns are still marked typographically, not acoustically.
 5. **Phonics vs. spelling.** Greek spelling→sound is fairly regular, but sound→spelling is
    not (ι/η/υ/ει/οι all = /i/). Level 0 and the LING scales must handle this explicitly.
 
@@ -60,12 +63,29 @@ Each decision below is a recommendation, not an open question.
   Noto Sans/Serif Greek or GFS fonts, OFL) under `static/fonts/` and reference it in
   `assets/css/custom.css`. Same check for `slidegen`/`sheetgen` LaTeX (`fontspec` +
   a Greek-covering OpenType font; confirm `\setmainfont` handles combining tonos).
-- **TTS → decision required, recommend low-tier Piper now, upgrade later.** Use
-  `el_GR-rapunzelina-low` via the shared `audiogen`/Piper workflow for vocab, dialogues and
-  texts; register it in the audiogen voices table. Consequence: **only one voice**, so
-  dialogues cannot alternate speakers acoustically — mark speaker turns typographically
-  instead. Re-evaluate when a medium-tier Greek Piper voice or a second speaker appears.
-  Verify pronunciation of tonos-stressed words and final-ς before committing audio.
+  §1's caution at challenge 3 is measured, not hedged: the bundled
+  `slidegen/fonts/SourceSans3-Regular.ttf` carries 781 codepoints with **none** in
+  U+0370–U+03FF, so it renders tofu for every Greek word. **F3** is where this is
+  fixed org-wide — full upstream Source Sans 3, self-hosted, with the Greek subset
+  built by `build_fonts.py` rather than hand-picked here — so do the verification, and
+  take the subset from F3 when it lands instead of pinning a one-off face.
+- **TTS → decided: `el_GR-rapunzelina-medium` (CC0), medium tier, single speaker.** Use
+  it via the shared `audiogen`/Piper workflow for vocab, dialogues and texts. The
+  medium-tier voice this document was waiting for already exists and is the same speaker
+  at 22.05 kHz instead of 16 kHz, under the same CC0 terms — so the audio quality target
+  rises with no licence cost and no re-audition of a new speaker. What does **not**
+  change: `el_GR-joy-medium`, the only other Greek speaker upstream, is **CC BY-NC 4.0**,
+  and a NonCommercial model cannot be used to synthesise audio that ships inside a
+  CC BY-SA 4.0 work at all. Greek therefore stays **single-voice**, dialogues cannot
+  alternate speakers acoustically, and speaker turns are marked typographically. The
+  fallback ladder if `-medium` disappoints is `el_GR-rapunzelina-low` (same speaker,
+  also CC0), then transcript-only — never a neighbouring language's voice. Verify
+  pronunciation of tonos-stressed words and final-ς before committing audio.
+- **Voice IDs are never hand-typed.** The ID, tier and licence above are read from
+  `audiogen/voices.yml` (relocating to `kit/audio/voices.yml` at F1), which is the single
+  source of truth and keeps `-low` and the rejected `joy` row with their licences so the
+  decision stays auditable. A voice ID retyped from memory is how a 404 gets written into
+  a download script.
 - **Level 0 stage** — see above; it is a first-class content section, its long-form
   explanatory pages carry VG Wort marks like any unit.
 
@@ -120,9 +140,12 @@ Stand up the buildable site first, before authoring content.
   **MED** mediation, **PLUR** plurilingual, several strategy scales, all C-level cells),
   record **`no-official-descriptor`** — a silently missing scale is a conformance failure; a
   declared gap is not. `SIGN` receives no IDs (out of scope).
-- **Audit.** Every `implements_id` must resolve via `curriculum/scripts/id-audit.sh`
-  (format + global uniqueness + resolves to a real (scale, level) in `scale-registry.yml`).
-  Wire this into CI as a per-course opt-in gate.
+- **Gate.** Every `implements_id` must resolve — format, global uniqueness, and
+  resolution to a real (scale, level) in `scale-registry.yml`. The reusable workflow
+  `boulingua/.github/.github/workflows/course-build.yml@v1` runs
+  `python .curriculum/scripts/conformance_audit.py resolve --manifest conformance.yml
+  --content content`. `id-audit.sh` audits the framework's *own* level files and
+  **cannot** validate this repo. Do not wire it here.
 
 ---
 
@@ -175,9 +198,12 @@ public-domain only, cited). **S–M.**
   `static/materials/` + `static/downloads/`. CI only *verifies* (no TeX Live in deploy path).
   Both LaTeX templates must be confirmed Greek-capable (fontspec + Greek OpenType face) as a
   one-time setup task before the first deck.
-- **Native-voice audio.** Run `audiogen`/Piper with `el_GR-rapunzelina-low`; output
-  OGG/Opus committed under `static/`; idempotent re-synthesis on text change. Add the Greek
-  row to the audiogen voices table. Single-voice caveat per §2.
+- **Native-voice audio.** Run `audiogen`/Piper with `el_GR-rapunzelina-medium` (CC0);
+  output OGG/Opus committed under `static/`; idempotent re-synthesis on text change. The
+  `.onnx` path comes from the `gfl` row in `audiogen/voices.yml` (→ `kit/audio/voices.yml`
+  at F1) and is never typed in by hand. Medium tier, so the audio quality target is the
+  same as the sister sites'; single-voice caveat per §2 still applies, and it is a licence
+  constraint, not a catalogue gap.
 - **Thumbnails & downloads.** `scripts/render_thumbs.py` for deck/worksheet thumbnails;
   `verify_downloads.py` gate ensures every referenced download exists and is attributed.
 
@@ -218,16 +244,16 @@ Zählmarke, per `pagegen/docs/vgwort-standard.md`. Procedure:
 | **M1 — Level 0 live** | 6 script-onboarding units, alphabet appendix, audio, fonts verified | M0 | L |
 | **M2 — A1 MVP (flip candidate)** | 12 A1 units + exam, materials, audio, conformance.yml (A1), VG Wort A1 | M1 | L |
 | **M3 — A2 complete** | 12 A2 units + exam, IDs, materials, marks | M2 | L |
-| **M4 — B1 complete → `core`** | 12–14 B1 units + exam, full appendix set, id-audit green | M3 | L |
+| **M4 — B1 complete → `core`** | 12–14 B1 units + exam, full appendix set, §4 gate green | M3 | L |
 | **M5 — polish** | thumbnails, glossary completeness, a11y pass, link-check | M4 | M |
 
-**Dependencies:** font/LaTeX Greek verification blocks all materials; TTS voice decision
-blocks all audio; `data/accents.yaml` (done) blocks the icon; T.O.M. code draw blocks each
+**Dependencies:** font/LaTeX Greek verification blocks all materials; the TTS voice is
+decided (§2) and blocks nothing beyond its own pronunciation spot-check; `data/accents.yaml` (done) blocks the icon; T.O.M. code draw blocks each
 phase's render-verify gate.
 
 **Definition of done (flip from "coming soon" to active on the world map):** site builds
 green with the full gate battery passing; **Level 0 + A1 complete** with materials + audio
-committed and thumbnails rendered; `conformance.yml` declares `core` and `id-audit.sh` is
+committed and thumbnails rendered; `conformance.yml` declares `core` and the §4 gate is
 green; every ≥1800-char page carries a registered, render-verified Zählmarke; legal pages
 filled and Datenschutz discloses METIS; README updated from "scaffold" to shipped. (A1 is the
 minimum public flip; A2/B1 land as rolling updates toward full `core`.)
@@ -236,10 +262,14 @@ minimum public flip; A2/B1 land as rolling updates toward full `core`.)
 
 ## 9. Open decisions & risks (language-specific)
 
-- **TTS quality (high risk).** `el_GR-rapunzelina-low` is the only open Greek Piper voice and
-  is "low" tier / single-speaker. Risk: mispronounced tonos-stressed words, no dialogue voice
-  contrast. Mitigation: verify a sample set before bulk synthesis; typographic speaker turns;
-  revisit if a better open voice appears.
+- **TTS quality (risk, downgraded).** The tier problem is gone: `el_GR-rapunzelina-medium`
+  is the same speaker as `-low` at medium quality and the same CC0 terms, so the "low tier"
+  this document accepted was never necessary. The **single-speaker** constraint stands, and
+  it is a licence constraint rather than a thin catalogue — upstream's second Greek speaker,
+  `el_GR-joy-medium`, is CC BY-NC 4.0 and unusable in a CC BY-SA 4.0 course. Residual risk:
+  mispronounced tonos-stressed words and no acoustic dialogue contrast. Mitigation: verify a
+  sample set before bulk synthesis; typographic speaker turns; revisit only if a Greek voice
+  lands with an allow-listed licence.
 - **Font coverage.** hugo-coder web font and both LaTeX templates must render tonos +
   diaeresis + final-ς. If any gap, self-host an OFL Greek face. Verify once, early.
 - **Transliteration scheme.** Confirm ELOT 743 for glossary headwords; decide the hard cutoff
